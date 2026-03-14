@@ -1,0 +1,9 @@
+{
+  "platforms": ["apple", "android", "web"],
+  "apple": {
+    "modules": ["CollectiblesNativeModule"]
+  },
+  "android": {
+    "modules": ["expo.modules.collectiblesnative.CollectiblesNativeModule"]
+  }
+}
