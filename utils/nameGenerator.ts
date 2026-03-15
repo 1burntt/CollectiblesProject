@@ -1,5 +1,6 @@
+// Una lista de nombres de personas
 const nombres = [
-  "James", "Mary", "John", "Patricia", "Robert", "Jennifer", 
+  "James", "Mary", "John", "Patricia", "Robert", "Jennifer",
   "Michael", "Linda", "William", "Elizabeth", "David", "Susan",
   "Richard", "Jessica", "Joseph", "Sarah", "Thomas", "Karen",
   "Christopher", "Nancy", "Charles", "Lisa", "Daniel", "Betty",
@@ -12,6 +13,7 @@ const nombres = [
   "Jesse", "Jamie", "Frankie", "Sam", "Chris", "Pat"
 ];
 
+// Función que elige un nombre al azar de la lista
 export const generarNombreUsuario = (): string => {
   return nombres[Math.floor(Math.random() * nombres.length)];
 };

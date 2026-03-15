@@ -1,10 +1,12 @@
-import { Text, TextProps, StyleSheet } from 'react-native';
+import { StyleSheet, Text, TextProps } from 'react-native';
 
+// Definimos los tipos de texto que podemos usar
 interface ThemedTextProps extends TextProps {
-  type?: 'default' | 'title' | 'subtitle';
+  type?: 'default' | 'title' | 'subtitle'; // Puede ser normal, título o subtítulo
 }
 
 export function ThemedText({ style, type = 'default', ...props }: ThemedTextProps) {
+  // Aplicamos el estilo según el tipo que nos pidan
   return <Text style={[styles[type], style]} {...props} />;
 }
 

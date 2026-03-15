@@ -2,29 +2,34 @@ import { ThemedText } from '@/components/ThemedText';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
+import React from 'react';
 import { SafeAreaView, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useUserCollection } from '../../contexts/UserCollectionContext';
 
 export default function InventoryScreen() {
+  // Pedimos la lista de inventario de la mochila
   const { inventory } = useUserCollection();
 
   return (
     <View style={styles.container}>
       <SafeAreaView style={{ flex: 1 }}>
+        {/* Cabecera con botón de volver */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()}>
             <Ionicons name="arrow-back" size={28} color="white" />
           </TouchableOpacity>
           <ThemedText type="title" style={styles.title}>My Inventory</ThemedText>
-          <View style={{ width: 28 }} />
+          <View style={{ width: 28 }} /> {/* Espacio vacío para centrar el título */}
         </View>
 
+        {/* Barra de estadísticas */}
         <View style={styles.statsBar}>
           <ThemedText style={styles.statsText}>
             Total Cards: {inventory.length}
           </ThemedText>
         </View>
 
+        {/* Si el inventario está vacío, mostramos un mensaje bonito */}
         {inventory.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Ionicons name="briefcase-outline" size={80} color="#4A5568" />
@@ -34,6 +39,7 @@ export default function InventoryScreen() {
             </ThemedText>
           </View>
         ) : (
+          // Si hay cartas, las mostramos en una cuadrícula
           <ScrollView contentContainerStyle={styles.scrollBody}>
             <View style={styles.grid}>
               {inventory.map((item, index) => (
@@ -41,14 +47,16 @@ export default function InventoryScreen() {
                   key={item.id}
                   style={[
                     styles.cardWrapper,
+                    // Esto es para que haya un espacio entre las cartas, pero la última de la fila no tenga margen derecho
                     (index + 1) % 3 !== 0 && styles.cardMarginRight
                   ]}
                   onPress={() => router.push({
                     pathname: `../card/${item.id}`,
-                    params: { fromCollection: 'true' }
+                    params: { fromCollection: 'true' } // Le decimos a la pantalla de detalle que venimos de una colección
                   })}
                 >
                   <Image
+                    // Usamos la imagen en baja calidad para que sea más rápida
                     source={{ uri: item.image ? `${item.image}/low.png` : undefined }}
                     style={styles.cardImage}
                     contentFit="contain"
@@ -66,20 +74,20 @@ export default function InventoryScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0A0A0A' },
-  header: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    padding: 20, 
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    padding: 20,
     alignItems: 'center',
     borderBottomWidth: 1,
     borderBottomColor: '#2A3344',
     backgroundColor: '#0F1420',
   },
   title: { color: '#FFF', fontSize: 22 },
-  statsBar: { 
-    backgroundColor: '#1A1F2A', 
-    padding: 10, 
-    alignItems: 'center', 
+  statsBar: {
+    backgroundColor: '#1A1F2A',
+    padding: 10,
+    alignItems: 'center',
     marginBottom: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#2A3344',
@@ -88,7 +96,7 @@ const styles = StyleSheet.create({
   scrollBody: { paddingHorizontal: 10, paddingBottom: 20 },
   grid: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexWrap: 'wrap', // Para que salten a la siguiente línea
   },
   cardWrapper: {
     width: '31%',
