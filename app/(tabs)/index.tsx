@@ -1,15 +1,24 @@
-import React, { useState, useEffect } from 'react';
-import {
-  StyleSheet, View, SafeAreaView, TouchableOpacity,
-  TextInput, Modal, StatusBar, FlatList, Alert, ActivityIndicator
-} from 'react-native';
-import { Image } from 'expo-image';
-import { ThemedText } from '../../components/ThemedText';
-import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import { generarNombreUsuario } from '../../utils/nameGenerator';
 import { fetchAllCards, searchCardsByName } from '@/API';
+import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
+import { router } from 'expo-router';
+import { useEffect, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Animated,
+  FlatList,
+  Modal,
+  SafeAreaView,
+  StatusBar,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  View
+} from 'react-native';
+import { ThemedText } from '../../components/ThemedText';
 import { useUserCollection } from '../../contexts/UserCollectionContext';
+import { generarNombreUsuario } from '../../utils/nameGenerator';
 
 interface Card {
   id: string;
@@ -27,18 +36,33 @@ export default function HomeScreen() {
   const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
-  // Estados para búsqueda
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Card[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
 
-  // Contexto para limpiar las colecciones
   const { clearAllData } = useUserCollection();
+
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0.95)).current;
 
   useEffect(() => {
     setUsername(generarNombreUsuario());
     loadInitialCards();
+    
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        friction: 8,
+        tension: 40,
+        useNativeDriver: true,
+      }),
+    ]).start();
   }, []);
 
   const loadInitialCards = async () => {
@@ -120,7 +144,6 @@ export default function HomeScreen() {
     setSearchResults([]);
   };
 
-  // Función para borrar todos los datos
   const limpiarTodosLosDatos = () => {
     Alert.alert(
       '🗑️ Borrar todos los datos',
@@ -152,14 +175,9 @@ export default function HomeScreen() {
     );
   };
 
-  const renderCardItem = ({ item, index }: { item: Card; index: number }) => (
-    <TouchableOpacity 
-      style={[
-        styles.cardWrapper,
-        (index + 1) % 3 !== 0 && styles.cardMarginRight
-      ]} 
-      onPress={() => handleCardPress(item.id)}
-    >
+  // Versión simplificada de renderCardItem (como en tu código original)
+  const renderCardItem = ({ item }: { item: Card }) => (
+    <TouchableOpacity style={styles.cardWrapper} onPress={() => handleCardPress(item.id)}>
       <Image
         source={{ uri: item.image }}
         style={styles.cardImage}
@@ -172,8 +190,8 @@ export default function HomeScreen() {
 
   if (loading) {
     return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#367C9C" />
+      <View style={[styles.centerContainer, { backgroundColor: '#0A0A0A' }]}>
+        <ActivityIndicator size="large" color="#FF8A5C" />
         <ThemedText style={styles.loadingText}>Cargando cartas...</ThemedText>
       </View>
     );
@@ -181,8 +199,8 @@ export default function HomeScreen() {
 
   if (error) {
     return (
-      <View style={styles.centerContainer}>
-        <Ionicons name="alert-circle-outline" size={60} color="#FF6B6B" />
+      <View style={[styles.centerContainer, { backgroundColor: '#0A0A0A' }]}>
+        <Ionicons name="alert-circle-outline" size={60} color="#FF8A5C" />
         <ThemedText style={styles.errorText}>{error}</ThemedText>
         <TouchableOpacity style={styles.retryButton} onPress={loadInitialCards}>
           <ThemedText style={styles.retryText}>Reintentar</ThemedText>
@@ -193,42 +211,48 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle="light-content" backgroundColor="#0A0A0A" />
+      
+      {/* WALLPAPER DE FONDO */}
+      <Image
+        source={require('../../assets/images/wallpaper.jpg')}
+        style={[styles.wallpaper, { opacity: 0.15 }]}
+        contentFit="cover"
+      />
+      
       <SafeAreaView style={{ flex: 1 }}>
         <View style={styles.header}>
           <ThemedText type="title" style={styles.logoText}>COLLECTIBLES</ThemedText>
           <TouchableOpacity onPress={() => setPanelVisible(true)} style={styles.menuIconButton}>
-            <Ionicons name="menu-outline" size={35} color="white" />
+            <Ionicons name="menu-outline" size={35} color="#FF8A5C" />
           </TouchableOpacity>
         </View>
 
-        {/* BUSCADOR */}
         <View style={styles.searchSection}>
           <View style={styles.searchContainer}>
-            <Ionicons name="search" size={20} color="#888" />
+            <Ionicons name="search" size={20} color="#A0AEC0" />
             <TextInput
               style={styles.searchInput}
               placeholder="Search cards..."
-              placeholderTextColor="#555"
+              placeholderTextColor="#4A5568"
               value={searchQuery}
               onChangeText={handleSearch}
             />
             {searchQuery.length > 0 && (
               <TouchableOpacity onPress={cancelSearch}>
-                <Ionicons name="close-circle" size={20} color="#888" />
+                <Ionicons name="close-circle" size={20} color="#A0AEC0" />
               </TouchableOpacity>
             )}
           </View>
         </View>
 
-        {/* RESULTADOS DE BÚSQUEDA O LISTA PRINCIPAL */}
         {showResults ? (
           <FlatList
             data={searchResults}
             renderItem={renderCardItem}
             keyExtractor={(item) => item.id}
             numColumns={3}
-            columnWrapperStyle={false}
+            columnWrapperStyle={styles.gridRow}
             contentContainerStyle={styles.scrollBody}
             ListHeaderComponent={
               <View style={styles.resultsHeader}>
@@ -240,14 +264,14 @@ export default function HomeScreen() {
             ListEmptyComponent={
               !isSearching && searchQuery.length >= 2 ? (
                 <View style={styles.centerContainer}>
-                  <ThemedText>No se encontraron cartas</ThemedText>
+                  <ThemedText style={{ color: '#A0AEC0' }}>No se encontraron cartas</ThemedText>
                 </View>
               ) : null
             }
             ListFooterComponent={
               isSearching ? (
                 <View style={styles.footerLoader}>
-                  <ActivityIndicator size="small" color="#367C9C" />
+                  <ActivityIndicator size="small" color="#6C5CE7" />
                   <ThemedText style={styles.footerText}>Buscando...</ThemedText>
                 </View>
               ) : null
@@ -259,14 +283,14 @@ export default function HomeScreen() {
             renderItem={renderCardItem}
             keyExtractor={(item) => item.id}
             numColumns={3}
-            columnWrapperStyle={false}
+            columnWrapperStyle={styles.gridRow}
             contentContainerStyle={styles.scrollBody}
             onEndReached={loadMoreCards}
             onEndReachedThreshold={0.5}
             ListFooterComponent={
               isLoadingMore ? (
                 <View style={styles.footerLoader}>
-                  <ActivityIndicator size="small" color="#367C9C" />
+                  <ActivityIndicator size="small" color="#6C5CE7" />
                   <ThemedText style={styles.footerText}>Cargando más...</ThemedText>
                 </View>
               ) : null
@@ -274,13 +298,11 @@ export default function HomeScreen() {
           />
         )}
 
-        {/* PANEL LATERAL CON FOTO DE PERFIL Y BOTÓN DE BORRAR */}
-        <Modal visible={isPanelVisible} transparent animationType="fade">
+        <Modal visible={isPanelVisible} transparent animationType="slide">
           <View style={styles.modalContainer}>
             <TouchableOpacity style={styles.closeOverlay} onPress={() => setPanelVisible(false)} activeOpacity={1} />
             <View style={styles.sidePanel}>
               <View style={styles.userInfoSection}>
-                {/* FOTO DE PERFIL - Coloca tu imagen en assets/images/profile-pic.jpg */}
                 <Image
                   source={require('../../assets/images/profile-pic.jpg')}
                   style={styles.avatarImage}
@@ -291,20 +313,19 @@ export default function HomeScreen() {
               
               <View style={styles.menuList}>
                 <TouchableOpacity style={styles.menuItem} onPress={() => { setPanelVisible(false); router.push('/(tabs)/inventoryScreen'); }}>
-                  <Ionicons name="briefcase-outline" size={22} color="white" />
+                  <Ionicons name="briefcase-outline" size={22} color="#FF8A5C" />
                   <ThemedText style={styles.menuItemText}>Inventory</ThemedText>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.menuItem} onPress={() => { setPanelVisible(false); router.push('/(tabs)/wishlistScreen'); }}>
-                  <Ionicons name="heart-outline" size={22} color="white" />
+                  <Ionicons name="heart-outline" size={22} color="#FFD93D" />
                   <ThemedText style={styles.menuItemText}>Wishlist</ThemedText>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.menuItem} onPress={() => { setPanelVisible(false); router.push('/(tabs)/TradeReady'); }}>
-                  <Ionicons name="swap-horizontal-outline" size={22} color="white" />
+                  <Ionicons name="swap-horizontal-outline" size={22} color="#4A9EFF" />
                   <ThemedText style={styles.menuItemText}>Listed for Trade</ThemedText>
                 </TouchableOpacity>
               </View>
 
-              {/* BOTÓN DE BORRAR DATOS */}
               <TouchableOpacity style={styles.deleteButton} onPress={limpiarTodosLosDatos}>
                 <Ionicons name="trash-outline" size={22} color="#FF6B6B" />
                 <ThemedText style={styles.deleteButtonText}>Borrar Datos</ThemedText>
@@ -318,66 +339,194 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000' },
-  centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#000' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 10, alignItems: 'center' },
-  logoText: { color: '#FFF', fontSize: 26, fontWeight: 'bold' },
-  menuIconButton: { padding: 5 },
-  searchSection: { paddingHorizontal: 20, marginBottom: 15 },
-  searchContainer: { flexDirection: 'row', backgroundColor: '#1A1A1A', padding: 12, borderRadius: 15, alignItems: 'center' },
-  searchInput: { flex: 1, color: 'white', marginLeft: 10, fontSize: 16 },
-  scrollBody: { paddingHorizontal: 10, paddingBottom: 20 },
-  gridRow: { justifyContent: 'space-between', marginBottom: 15 },
+  container: { 
+    flex: 1, 
+    backgroundColor: '#0A0A0A',
+  },
+  wallpaper: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: '100%',
+    height: '100%',
+  },
+  centerContainer: { 
+    flex: 1, 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+  },
+  header: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    paddingHorizontal: 20, 
+    paddingVertical: 15, 
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#2A3344',
+  },
+  logoText: { 
+    color: '#FFFFFF', 
+    fontSize: 26, 
+    fontWeight: 'bold',
+    textShadowColor: '#6C5CE7',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 10,
+  },
+  menuIconButton: { 
+    padding: 8,
+    backgroundColor: '#1A1F2A',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#2A3344',
+  },
+  searchSection: { 
+    paddingHorizontal: 20, 
+    marginVertical: 15,
+  },
+  searchContainer: { 
+    flexDirection: 'row', 
+    backgroundColor: '#1A1F2A', 
+    padding: 12, 
+    borderRadius: 15, 
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#2A3344',
+  },
+  searchInput: { 
+    flex: 1, 
+    color: 'white', 
+    marginLeft: 10, 
+    fontSize: 16,
+  },
+  scrollBody: { 
+    paddingHorizontal: 10, 
+    paddingBottom: 20,
+  },
+  gridRow: { 
+    justifyContent: 'space-between', 
+    marginBottom: 15 
+  },
   cardWrapper: { 
     width: '31%', 
     aspectRatio: 0.72, 
-    backgroundColor: '#111', 
-    borderRadius: 12, 
+    backgroundColor: '#1A1F2A', 
+    borderRadius: 16, 
     overflow: 'hidden', 
     alignItems: 'center', 
-    padding: 5,
-    marginBottom: 15
+    padding: 8,
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: '#2A3344',
+    shadowColor: '#6C5CE7',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  cardMarginRight: {
-    marginRight: '3.5%',
+  cardImage: { 
+    width: '100%', 
+    height: '85%',
+    borderRadius: 12,
   },
-  cardImage: { width: '100%', height: '85%' },
-  cardName: { color: '#888', fontSize: 11, marginTop: 4, fontWeight: '500' },
-  loadingText: { marginTop: 10, color: '#888' },
-  errorText: { color: '#FF6B6B', fontSize: 16, textAlign: 'center', marginHorizontal: 40, marginTop: 20 },
-  retryButton: { marginTop: 20, backgroundColor: '#367C9C', paddingHorizontal: 30, paddingVertical: 12, borderRadius: 25 },
-  retryText: { color: 'white', fontSize: 16, fontWeight: '600' },
-  footerLoader: { marginVertical: 20, alignItems: 'center' },
-  footerText: { color: '#888', marginTop: 5 },
+  cardName: { 
+    color: '#A0AEC0', 
+    fontSize: 11, 
+    marginTop: 6, 
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  loadingText: { 
+    marginTop: 10, 
+    color: '#A0AEC0' 
+  },
+  errorText: { 
+    color: '#FF8A5C', 
+    fontSize: 16, 
+    textAlign: 'center', 
+    marginHorizontal: 40, 
+    marginTop: 20 
+  },
+  retryButton: { 
+    marginTop: 20, 
+    backgroundColor: '#6C5CE7', 
+    paddingHorizontal: 30, 
+    paddingVertical: 12, 
+    borderRadius: 25,
+    borderWidth: 1,
+    borderColor: '#4A9EFF',
+  },
+  retryText: { 
+    color: 'white', 
+    fontSize: 16, 
+    fontWeight: '600' 
+  },
+  footerLoader: { 
+    marginVertical: 20, 
+    alignItems: 'center' 
+  },
+  footerText: { 
+    color: '#A0AEC0', 
+    marginTop: 5 
+  },
   
-  // Estilos del modal
-  modalContainer: { flex: 1, flexDirection: 'row' },
-  closeOverlay: { flex: 0.3, backgroundColor: 'rgba(0,0,0,0.6)' },
+  modalContainer: { 
+    flex: 1, 
+    flexDirection: 'row' 
+  },
+  closeOverlay: { 
+    flex: 0.3, 
+    backgroundColor: 'rgba(0,0,0,0.8)' 
+  },
   sidePanel: { 
     flex: 0.7, 
-    backgroundColor: '#121212', 
+    backgroundColor: '#121826', 
     borderLeftWidth: 1, 
-    borderLeftColor: '#333',
+    borderLeftColor: '#2A3344',
     position: 'relative',
   },
-  userInfoSection: { padding: 40, alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#222' },
-  
-  // Estilo para la foto de perfil
+  userInfoSection: { 
+    padding: 40, 
+    alignItems: 'center', 
+    borderBottomWidth: 1, 
+    borderBottomColor: '#2A3344',
+    backgroundColor: '#0F1420',
+  },
   avatarImage: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     marginBottom: 15,
-    borderWidth: 2,
-    borderColor: '#4CAF50',
+    borderWidth: 3,
+    borderColor: '#FF8A5C',
+  },
+  panelUser: { 
+    color: 'white', 
+    fontSize: 20, 
+    fontWeight: 'bold' 
+  },
+  menuList: { 
+    padding: 20 
+  },
+  menuItem: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    paddingVertical: 18, 
+    paddingHorizontal: 15,
+    borderBottomWidth: 1, 
+    borderBottomColor: '#2A3344',
+    backgroundColor: '#1A1F2A',
+    borderRadius: 12,
+    marginBottom: 10,
+  },
+  menuItemText: { 
+    color: 'white', 
+    fontSize: 16, 
+    marginLeft: 15,
+    fontWeight: '500',
   },
   
-  panelUser: { color: 'white', fontSize: 18, fontWeight: 'bold' },
-  menuList: { padding: 20 },
-  menuItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 20, borderBottomWidth: 1, borderBottomColor: '#1A1A1A' },
-  menuItemText: { color: 'white', fontSize: 16, marginLeft: 15 },
-  
-  // Botón de borrar datos
   deleteButton: {
     position: 'absolute',
     bottom: 30,
@@ -403,10 +552,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 5,
     marginBottom: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
+    borderBottomColor: '#2A3344',
   },
   resultsText: {
-    color: '#888',
+    color: '#A0AEC0',
     fontSize: 14,
     fontStyle: 'italic',
   },

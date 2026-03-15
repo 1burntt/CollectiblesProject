@@ -1,6 +1,3 @@
-// utils/nameGenerator.ts
-
-// Nombres comunes en Estados Unidos (solo nombres, sin apellidos)
 const nombres = [
   "James", "Mary", "John", "Patricia", "Robert", "Jennifer", 
   "Michael", "Linda", "William", "Elizabeth", "David", "Susan",

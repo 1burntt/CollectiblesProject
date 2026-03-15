@@ -1,4 +1,3 @@
-// API.ts
 const BASE_URL = 'https://api.tcgdex.net/v2/en';
 
 async function fetchAPI<T>(endpoint: string): Promise<T> {
@@ -35,7 +34,6 @@ const POPULAR_SETS = [
   'swsh1', 'base1', 'dp1', 'ex1', 'hgss1', 'xy1', 'sm1', 'neo1',
 ];
 
-// Obtiene todas las cartas (MINIATURAS: /low.png)
 export const fetchAllCards = async (page: number = 1, limit: number = 20): Promise<CardListItem[]> => {
   try {
     const startIndex = ((page - 1) * 2) % POPULAR_SETS.length;
@@ -66,7 +64,6 @@ export const fetchAllCards = async (page: number = 1, limit: number = 20): Promi
   }
 };
 
-// Obtiene una carta por ID (ALTA CALIDAD: /high.png)
 export const fetchCardById = async (id: string): Promise<Card | null> => {
   try {
     const data = await fetchAPI<any>(`/cards/${id}`);
@@ -88,7 +85,6 @@ export const fetchCardById = async (id: string): Promise<Card | null> => {
   }
 };
 
-// Búsqueda de cartas por nombre - VERSIÓN CORREGIDA
 export const searchCardsByName = async (query: string, limit: number = 20): Promise<CardListItem[]> => {
   try {
     if (!query || query.length < 2) return [];
@@ -97,7 +93,6 @@ export const searchCardsByName = async (query: string, limit: number = 20): Prom
     
     const allResults: CardListItem[] = [];
     
-    // Buscar en todos los sets populares
     for (const setId of POPULAR_SETS) {
       if (allResults.length >= limit) break;
       
@@ -107,9 +102,9 @@ export const searchCardsByName = async (query: string, limit: number = 20): Prom
         
         if (setData && setData.cards && Array.isArray(setData.cards)) {
           const matches = setData.cards
-            .filter((card: any) => 
-              card.name && 
-              card.name.toLowerCase().includes(query.toLowerCase()) && 
+            .filter((card: any) =>
+              card.name &&
+              card.name.toLowerCase().includes(query.toLowerCase()) &&
               card.image
             )
             .slice(0, limit - allResults.length)
@@ -125,7 +120,6 @@ export const searchCardsByName = async (query: string, limit: number = 20): Prom
           }
         }
       } catch (e) {
-        // Ignorar errores de sets individuales
         console.log(`⚠️ Error en set ${setId}:`, e);
       }
     }

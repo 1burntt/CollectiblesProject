@@ -1,6 +1,5 @@
-// contexts/UserCollectionContext.tsx
-import React, { createContext, useState, useContext, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 
 export interface Card {
   id: string;
@@ -26,7 +25,7 @@ interface UserCollectionContextType {
   isInInventory: (cardId: string) => boolean;
   isInWishlist: (cardId: string) => boolean;
   isInTradeList: (cardId: string) => boolean;
-  clearAllData: () => Promise<void>; // NUEVA FUNCIÓN
+  clearAllData: () => Promise<void>;
 }
 
 const UserCollectionContext = createContext<UserCollectionContextType | undefined>(undefined);
@@ -38,12 +37,10 @@ export const useUserCollection = () => {
 };
 
 export const UserCollectionProvider = ({ children }: { children: React.ReactNode }) => {
-  // TODAS LAS LISTAS EMPIEZAN VACÍAS
   const [inventory, setInventory] = useState<Card[]>([]);
   const [wishlist, setWishlist] = useState<Card[]>([]);
   const [tradeList, setTradeList] = useState<Card[]>([]);
 
-  // Cargar datos guardados al iniciar
   useEffect(() => {
     loadStoredData();
   }, []);
@@ -92,7 +89,6 @@ export const UserCollectionProvider = ({ children }: { children: React.ReactNode
   };
 
   const addToTradeList = (card: Card) => {
-    // SOLO agregar a tradeList si ya está en inventario
     if (inventory.some(c => c.id === card.id)) {
       if (!tradeList.some(c => c.id === card.id)) {
         const newTradeList = [...tradeList, card];
@@ -104,8 +100,6 @@ export const UserCollectionProvider = ({ children }: { children: React.ReactNode
   const removeFromInventory = (cardId: string) => {
     const newInventory = inventory.filter(c => c.id !== cardId);
     saveInventory(newInventory);
-    
-    // Si estaba en tradeList, también quitarlo
     if (tradeList.some(c => c.id === cardId)) {
       removeFromTradeList(cardId);
     }
@@ -125,17 +119,12 @@ export const UserCollectionProvider = ({ children }: { children: React.ReactNode
   const isInWishlist = (cardId: string) => wishlist.some(c => c.id === cardId);
   const isInTradeList = (cardId: string) => tradeList.some(c => c.id === cardId);
 
-  // NUEVA FUNCIÓN: Limpia todos los datos de una vez
   const clearAllData = async () => {
     try {
-      // 1. Limpiar AsyncStorage
       await AsyncStorage.clear();
-      
-      // 2. Limpiar todos los estados locales
       setInventory([]);
       setWishlist([]);
       setTradeList([]);
-      
       console.log('🗑️ Todos los datos han sido eliminados');
     } catch (error) {
       console.error('Error al limpiar datos:', error);
@@ -149,7 +138,7 @@ export const UserCollectionProvider = ({ children }: { children: React.ReactNode
       addToInventory, addToWishlist, addToTradeList,
       removeFromInventory, removeFromWishlist, removeFromTradeList,
       isInInventory, isInWishlist, isInTradeList,
-      clearAllData // NUEVA FUNCIÓN EXPUESTA
+      clearAllData
     }}>
       {children}
     </UserCollectionContext.Provider>
