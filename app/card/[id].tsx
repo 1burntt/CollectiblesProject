@@ -1,3 +1,4 @@
+// app/card/[id].tsx
 import { fetchCardById, type Card } from '@/API';
 import { ThemedText } from '@/components/ThemedText';
 import { Ionicons } from '@expo/vector-icons';
@@ -6,7 +7,8 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   Alert,
-  Dimensions, FlatList,
+  Dimensions,
+  FlatList,
   Modal,
   ScrollView,
   StyleSheet,
@@ -16,20 +18,25 @@ import {
 import { useUserCollection } from '../../contexts/UserCollectionContext';
 import { generarNombreUsuario } from '../../utils/nameGenerator';
 
+// Obtenemos el ancho y alto de la pantalla del telefono
 const { width, height } = Dimensions.get('window');
 
 export default function CardDetailScreen() {
+  // --- 1. Obtenemos los parametros de la URL (el id de la carta) ---
   const { id, fromCollection } = useLocalSearchParams();
   const router = useRouter();
-  const [card, setCard] = useState<Card | null>(null);
-  const [owner, setOwner] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [modalVisible, setModalVisible] = useState(false);
-  
-  // Estados para el modal de selección de carta
+
+  // --- 2. Estados de la pantalla ---
+  const [card, setCard] = useState<Card | null>(null);        // La carta que estamos viendo
+  const [owner, setOwner] = useState('');                      // Quien es el dueño (si no es de nuestra coleccion)
+  const [loading, setLoading] = useState(true);                // Esta cargando la carta?
+  const [modalVisible, setModalVisible] = useState(false);     // Modal para ver la imagen en grande
+
+  // Estados para el modal de seleccion de carta (para el intercambio)
   const [selectModalVisible, setSelectModalVisible] = useState(false);
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
 
+  // --- 3. Obtenemos las funciones del contexto para manejar las colecciones ---
   const {
     addToInventory,
     addToWishlist,
@@ -40,13 +47,17 @@ export default function CardDetailScreen() {
     inventory
   } = useUserCollection();
 
+  // --- 4. Efecto que se ejecuta al cargar la pantalla o cuando cambia el id ---
   useEffect(() => {
+    // Si la carta NO viene de nuestra coleccion, le ponemos un dueño al azar
     if (!fromCollection) {
       setOwner(generarNombreUsuario());
     }
+    // Cargamos los detalles de la carta
     if (id) loadCardDetails(id as string);
   }, [id, fromCollection]);
 
+  // --- 5. Funcion para pedir los detalles de la carta a la API ---
   const loadCardDetails = async (cardId: string) => {
     try {
       const data = await fetchCardById(cardId);
@@ -58,6 +69,7 @@ export default function CardDetailScreen() {
     }
   };
 
+  // --- 6. Funciones para los botones (cada una hace una accion especifica) ---
   const handleAddToInventory = () => {
     if (card) {
       addToInventory(card);
@@ -89,21 +101,21 @@ export default function CardDetailScreen() {
     }
   };
 
-  // Función para manejar "Pedir carta"
+  // Funcion para manejar "Pedir carta"
   const handleRequestCard = () => {
     if (inventory.length === 0) {
       Alert.alert('❌ Inventario vacío', 'No tienes cartas en tu inventario para ofrecer.');
       return;
     }
-    setSelectModalVisible(true);
+    setSelectModalVisible(true); // Abrimos el modal para elegir una carta de nuestro inventario
   };
 
-  // Función cuando se selecciona una carta del inventario
+  // Funcion cuando se selecciona una carta del inventario para el intercambio
   const handleSelectCard = (selected: Card) => {
     setSelectedCard(selected);
     setSelectModalVisible(false);
-    
-    // Mostrar mensaje de solicitud
+
+    // Mostramos un mensaje de que la solicitud fue enviada
     Alert.alert(
       '📨 Solicitud enviada',
       `Se mandó una petición a ${owner} para intercambiar su ${card?.name} por tu ${selected.name}.`,
@@ -111,9 +123,9 @@ export default function CardDetailScreen() {
     );
   };
 
-  // Renderizar cada carta en el modal de selección
+  // Funcion que dibuja cada carta en el modal de seleccion
   const renderInventoryItem = ({ item }: { item: Card }) => (
-    <TouchableOpacity 
+    <TouchableOpacity
       style={styles.inventoryItem}
       onPress={() => handleSelectCard(item)}
     >
@@ -128,6 +140,7 @@ export default function CardDetailScreen() {
     </TouchableOpacity>
   );
 
+  // --- 7. Que mostramos mientras carga ---
   if (loading) {
     return (
       <View style={styles.centerContainer}>
@@ -136,6 +149,7 @@ export default function CardDetailScreen() {
     );
   }
 
+  // --- 8. Que mostramos si no se encuentra la carta ---
   if (!card) {
     return (
       <View style={styles.centerContainer}>
@@ -144,9 +158,11 @@ export default function CardDetailScreen() {
     );
   }
 
+  // --- 9. La pantalla principal con toda la interfaz ---
   return (
     <>
       <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
+        {/* Barra de navegacion superior con boton de retroceso */}
         <View style={styles.navHeader}>
           <TouchableOpacity onPress={() => router.back()}>
             <Ionicons name="chevron-back" size={30} color="white" />
@@ -156,6 +172,7 @@ export default function CardDetailScreen() {
           )}
         </View>
 
+        {/* Seccion de la imagen (al tocarla se abre el modal grande) */}
         <TouchableOpacity
           style={styles.imageSection}
           onPress={() => setModalVisible(true)}
@@ -173,13 +190,13 @@ export default function CardDetailScreen() {
           </View>
         </TouchableOpacity>
 
-        {/* CUATRO BOTONES (ahora con "Pedir carta") */}
+        {/* CUATRO BOTONES DE ACCION */}
         <View style={styles.actionButtons}>
-          {/* Botón 1: Agregar a Inventario */}
+          {/* Boton 1: Agregar a Inventario */}
           <TouchableOpacity
             style={[styles.actionBtn, styles.inventoryBtn]}
             onPress={handleAddToInventory}
-            disabled={isInInventory(card.id)}
+            disabled={isInInventory(card.id)} // Se deshabilita si ya esta
           >
             <Ionicons name="briefcase" size={24} color={isInInventory(card.id) ? '#666' : '#4CAF50'} />
             <ThemedText style={[styles.btnLabel, isInInventory(card.id) && styles.disabledText]}>
@@ -187,7 +204,7 @@ export default function CardDetailScreen() {
             </ThemedText>
           </TouchableOpacity>
 
-          {/* Botón 2: Agregar a Wishlist */}
+          {/* Boton 2: Agregar a Wishlist */}
           <TouchableOpacity
             style={[styles.actionBtn, styles.wishlistBtn]}
             onPress={handleAddToWishlist}
@@ -199,7 +216,7 @@ export default function CardDetailScreen() {
             </ThemedText>
           </TouchableOpacity>
 
-          {/* Botón 3: Agregar a Trade List */}
+          {/* Boton 3: Agregar a Trade List */}
           <TouchableOpacity
             style={[styles.actionBtn, styles.tradeBtn]}
             onPress={handleAddToTradeList}
@@ -211,7 +228,7 @@ export default function CardDetailScreen() {
             </ThemedText>
           </TouchableOpacity>
 
-          {/* Botón 4: Pedir carta (SOLO cuando NO viene de colección) */}
+          {/* Boton 4: Pedir carta (SOLO cuando NO viene de coleccion) */}
           {!fromCollection && (
             <TouchableOpacity
               style={[styles.actionBtn, styles.requestBtn]}
@@ -223,6 +240,7 @@ export default function CardDetailScreen() {
           )}
         </View>
 
+        {/* Informacion detallada de la carta */}
         <View style={styles.infoBox}>
           <ThemedText type="subtitle" style={styles.infoTitle}>Card Information</ThemedText>
           <View style={styles.infoRow}>
@@ -248,7 +266,7 @@ export default function CardDetailScreen() {
         </View>
       </ScrollView>
 
-      {/* Modal de imagen en alta calidad */}
+      {/* MODAL PARA VER LA IMAGEN EN GRANDE */}
       <Modal visible={modalVisible} transparent animationType="fade" onRequestClose={() => setModalVisible(false)}>
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setModalVisible(false)}>
           <View style={styles.modalContent}>
@@ -265,7 +283,7 @@ export default function CardDetailScreen() {
         </TouchableOpacity>
       </Modal>
 
-      {/* MODAL PARA SELECCIONAR CARTA DEL INVENTARIO */}
+      {/* MODAL PARA SELECCIONAR CARTA DEL INVENTARIO (para intercambiar) */}
       <Modal visible={selectModalVisible} transparent animationType="slide">
         <View style={styles.selectModalContainer}>
           <View style={styles.selectModalContent}>
@@ -275,7 +293,7 @@ export default function CardDetailScreen() {
                 <Ionicons name="close" size={30} color="white" />
               </TouchableOpacity>
             </View>
-            
+
             {inventory.length === 0 ? (
               <View style={styles.emptyInventory}>
                 <ThemedText>No tienes cartas en tu inventario</ThemedText>
@@ -334,43 +352,43 @@ const styles = StyleSheet.create({
     borderColor: '#FF8A5C',
   },
   zoomText: { color: 'white', fontSize: 12, marginLeft: 5 },
-  
+
   // Estilos para los 4 botones
-  actionButtons: { 
-    flexDirection: 'column', 
-    paddingHorizontal: 20, 
-    marginVertical: 20, 
-    gap: 12 
+  actionButtons: {
+    flexDirection: 'column',
+    paddingHorizontal: 20,
+    marginVertical: 20,
+    gap: 12
   },
-  actionBtn: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    padding: 15, 
-    borderRadius: 12, 
-    borderWidth: 1, 
+  actionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 15,
+    borderRadius: 12,
+    borderWidth: 1,
     gap: 10,
     backgroundColor: '#1A1F2A',
   },
-  inventoryBtn: { 
-    backgroundColor: '#1A2A1A', 
-    borderColor: '#4CAF50' 
+  inventoryBtn: {
+    backgroundColor: '#1A2A1A',
+    borderColor: '#4CAF50'
   },
-  wishlistBtn: { 
-    backgroundColor: '#2A1A2A', 
-    borderColor: '#FF8A5C' 
+  wishlistBtn: {
+    backgroundColor: '#2A1A2A',
+    borderColor: '#FF8A5C'
   },
-  tradeBtn: { 
-    backgroundColor: '#1A1A2A', 
-    borderColor: '#4A9EFF' 
+  tradeBtn: {
+    backgroundColor: '#1A1A2A',
+    borderColor: '#4A9EFF'
   },
-  requestBtn: { 
-    backgroundColor: '#2A2A1A', 
-    borderColor: '#FFD93D' 
+  requestBtn: {
+    backgroundColor: '#2A2A1A',
+    borderColor: '#FFD93D'
   },
   btnLabel: { fontSize: 14, fontWeight: '600', color: 'white' },
   disabledText: { color: '#666' },
-  
+
   infoBox: {
     backgroundColor: '#1A1F2A',
     margin: 20,
@@ -391,7 +409,7 @@ const styles = StyleSheet.create({
   infoRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
   label: { color: '#A0AEC0', fontSize: 14 },
   value: { color: '#FFD93D', fontSize: 14, fontWeight: 'bold' },
-  
+
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.95)',
@@ -416,8 +434,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
     borderRadius: 20,
   },
-
-  // Estilos para el modal de selección
+  // Estilos para el modal de seleccion
   selectModalContainer: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.9)',

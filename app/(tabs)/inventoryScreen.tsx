@@ -1,30 +1,36 @@
+// app/(tabs)/inventoryScreen.tsx
 import { ThemedText } from '@/components/ThemedText';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
+import React from 'react';
 import { SafeAreaView, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useUserCollection } from '../../contexts/UserCollectionContext';
 
 export default function InventoryScreen() {
+  // Obtenemos la lista de inventario del contexto
   const { inventory } = useUserCollection();
 
   return (
     <View style={styles.container}>
       <SafeAreaView style={{ flex: 1 }}>
+        {/* Cabecera con boton de retroceso y titulo */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()}>
             <Ionicons name="arrow-back" size={28} color="white" />
           </TouchableOpacity>
           <ThemedText type="title" style={styles.title}>My Inventory</ThemedText>
-          <View style={{ width: 28 }} />
+          <View style={{ width: 28 }} /> {/* Un espacio vacio para centrar el titulo */}
         </View>
 
+        {/* Barra de estadisticas (total de cartas) */}
         <View style={styles.statsBar}>
           <ThemedText style={styles.statsText}>
             Total Cards: {inventory.length}
           </ThemedText>
         </View>
 
+        {/* Si el inventario esta vacio, mostramos un mensaje. Si no, mostramos las cartas */}
         {inventory.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Ionicons name="briefcase-outline" size={80} color="#4A5568" />
@@ -41,11 +47,11 @@ export default function InventoryScreen() {
                   key={item.id}
                   style={[
                     styles.cardWrapper,
-                    (index + 1) % 3 !== 0 && styles.cardMarginRight
+                    (index + 1) % 3 !== 0 && styles.cardMarginRight // Para darle espacio entre las cartas
                   ]}
                   onPress={() => router.push({
                     pathname: `../card/${item.id}`,
-                    params: { fromCollection: 'true' }
+                    params: { fromCollection: 'true' } // Le decimos a la pantalla de detalle que venimos de una coleccion
                   })}
                 >
                   <Image
@@ -66,20 +72,20 @@ export default function InventoryScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0A0A0A' },
-  header: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    padding: 20, 
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    padding: 20,
     alignItems: 'center',
     borderBottomWidth: 1,
     borderBottomColor: '#2A3344',
     backgroundColor: '#0F1420',
   },
   title: { color: '#FFF', fontSize: 22 },
-  statsBar: { 
-    backgroundColor: '#1A1F2A', 
-    padding: 10, 
-    alignItems: 'center', 
+  statsBar: {
+    backgroundColor: '#1A1F2A',
+    padding: 10,
+    alignItems: 'center',
     marginBottom: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#2A3344',

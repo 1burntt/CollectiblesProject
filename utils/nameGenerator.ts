@@ -1,5 +1,8 @@
+// utils/nameGenerator.ts
+
+// 1. Una lista enorme de nombres para elegir
 const nombres = [
-  "James", "Mary", "John", "Patricia", "Robert", "Jennifer", 
+  "James", "Mary", "John", "Patricia", "Robert", "Jennifer",
   "Michael", "Linda", "William", "Elizabeth", "David", "Susan",
   "Richard", "Jessica", "Joseph", "Sarah", "Thomas", "Karen",
   "Christopher", "Nancy", "Charles", "Lisa", "Daniel", "Betty",
@@ -12,6 +15,12 @@ const nombres = [
   "Jesse", "Jamie", "Frankie", "Sam", "Chris", "Pat"
 ];
 
+// 2. La funcion que escoge un nombre al azar
 export const generarNombreUsuario = (): string => {
-  return nombres[Math.floor(Math.random() * nombres.length)];
+  // Math.random() da un numero entre 0 y 1.
+  // Lo multiplicamos por la cantidad de nombres para obtener un indice al azar.
+  // Math.floor redondea hacia abajo para obtener un numero entero.
+  const indiceAleatorio = Math.floor(Math.random() * nombres.length);
+  // Devolvemos el nombre que este en esa posicion.
+  return nombres[indiceAleatorio];
 };
