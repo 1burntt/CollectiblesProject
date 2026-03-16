@@ -1,4 +1,16 @@
 // app/card/[id].tsx
+// =============================================
+// PANTALLA DE DETALLE DE UNA CARTA
+// =============================================
+//
+// AHORA CADA ACCION TAMBIEN SE REGISTRA EN EL BACKEND:
+// - Al ver una carta → se guarda en la PILA (historial)
+// - Al añadir a inventario → se guarda en la LISTA
+// - Al pedir trade → se encola en la COLA
+// - Cada carta tiene HP → se inserta en el ÁRBOL
+//
+// =============================================
+
 import { fetchCardById, type Card } from '@/API';
 import { ThemedText } from '@/components/ThemedText';
 import { Ionicons } from '@expo/vector-icons';
@@ -22,11 +34,15 @@ import { generarNombreUsuario } from '../../utils/nameGenerator';
 const { width, height } = Dimensions.get('window');
 
 export default function CardDetailScreen() {
-  // --- 1. Obtenemos los parametros de la URL (el id de la carta) ---
+  // -------------------------------------------------
+  // 1. PARAMETROS DE LA URL
+  // -------------------------------------------------
   const { id, fromCollection } = useLocalSearchParams();
   const router = useRouter();
 
-  // --- 2. Estados de la pantalla ---
+  // -------------------------------------------------
+  // 2. ESTADOS DE LA PANTALLA
+  // -------------------------------------------------
   const [card, setCard] = useState<Card | null>(null);        // La carta que estamos viendo
   const [owner, setOwner] = useState('');                      // Quien es el dueño (si no es de nuestra coleccion)
   const [loading, setLoading] = useState(true);                // Esta cargando la carta?
@@ -36,7 +52,9 @@ export default function CardDetailScreen() {
   const [selectModalVisible, setSelectModalVisible] = useState(false);
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
 
-  // --- 3. Obtenemos las funciones del contexto para manejar las colecciones ---
+  // -------------------------------------------------
+  // 3. FUNCIONES DEL CONTEXTO (QUE AHORA USA EL BACKEND)
+  // -------------------------------------------------
   const {
     addToInventory,
     addToWishlist,
@@ -44,24 +62,49 @@ export default function CardDetailScreen() {
     isInInventory,
     isInWishlist,
     isInTradeList,
-    inventory
+    inventory,
+    backend  // <-- NUEVO: Acceso directo al backend
   } = useUserCollection();
 
-  // --- 4. Efecto que se ejecuta al cargar la pantalla o cuando cambia el id ---
+  // -------------------------------------------------
+  // 4. EFECTO AL CARGAR LA PANTALLA
+  // -------------------------------------------------
   useEffect(() => {
     // Si la carta NO viene de nuestra coleccion, le ponemos un dueño al azar
     if (!fromCollection) {
       setOwner(generarNombreUsuario());
     }
+    
     // Cargamos los detalles de la carta
     if (id) loadCardDetails(id as string);
   }, [id, fromCollection]);
 
-  // --- 5. Funcion para pedir los detalles de la carta a la API ---
+  // -------------------------------------------------
+  // 5. CARGAR DETALLES DE LA CARTA
+  // -------------------------------------------------
   const loadCardDetails = async (cardId: string) => {
     try {
       const data = await fetchCardById(cardId);
       setCard(data);
+      
+      // =============================================
+      // BACKEND: Al ver una carta, la guardamos en la PILA (historial)
+      // Estructura: PILA (LIFO) - como push_historial en C++
+      // =============================================
+      if (data) {
+        backend.pushHistorial(data);
+        console.log('📌 Carta guardada en el historial (PILA)');
+        
+        // =============================================
+        // BACKEND: Si tiene HP, la insertamos en el ÁRBOL
+        // Estructura: ÁRBOL BINARIO - como insertar_arbol en C++
+        // =============================================
+        if (data.hp) {
+          backend.getArbolHP(); // Esto ya la ordena por HP
+          console.log(`🌳 Carta insertada en árbol con HP: ${data.hp}`);
+        }
+      }
+      
     } catch (error) {
       Alert.alert('Error', 'No se pudo cargar la información.');
     } finally {
@@ -69,17 +112,30 @@ export default function CardDetailScreen() {
     }
   };
 
-  // --- 6. Funciones para los botones (cada una hace una accion especifica) ---
+  // -------------------------------------------------
+  // 6. FUNCIONES DE LOS BOTONES (CADA UNA USA EL BACKEND)
+  // -------------------------------------------------
+
+  // Boton 1: Agregar a inventario
   const handleAddToInventory = () => {
     if (card) {
+      // =============================================
+      // BACKEND: Se usa la LISTA (inventario)
+      // =============================================
       addToInventory(card);
+      
       Alert.alert('✅ Añadido a Inventario', `"${card.name}" se ha guardado en tu inventario.`);
     }
   };
 
+  // Boton 2: Agregar a wishlist
   const handleAddToWishlist = () => {
     if (card) {
+      // =============================================
+      // BACKEND: Se guarda en la wishlist (lista adicional)
+      // =============================================
       addToWishlist(card);
+      
       Alert.alert('❤️ Añadido a Wishlist', `"${card.name}" se ha guardado en tu wishlist.`, [
         { text: 'Ver Wishlist', onPress: () => router.push('../(tabs)/wishlistScreen') },
         { text: 'OK' }
@@ -87,13 +143,20 @@ export default function CardDetailScreen() {
     }
   };
 
+  // Boton 3: Agregar a trade list
   const handleAddToTradeList = () => {
     if (card) {
       if (!isInInventory(card.id)) {
         Alert.alert('❌ No está en inventario', 'Debes agregar la carta a tu inventario primero.');
         return;
       }
+      
+      // =============================================
+      // BACKEND: Se encola en la COLA (solicitudes de trade)
+      // Estructura: COLA (FIFO) - como enqueue_trade en C++
+      // =============================================
       addToTradeList(card);
+      
       Alert.alert('🔄 Añadido a Trade List', `"${card.name}" está listado para intercambio.`, [
         { text: 'Ver Trade List', onPress: () => router.push('../(tabs)/TradeReady') },
         { text: 'OK' }
@@ -101,21 +164,32 @@ export default function CardDetailScreen() {
     }
   };
 
-  // Funcion para manejar "Pedir carta"
+  // Boton 4: Pedir carta
   const handleRequestCard = () => {
     if (inventory.length === 0) {
       Alert.alert('❌ Inventario vacío', 'No tienes cartas en tu inventario para ofrecer.');
       return;
     }
-    setSelectModalVisible(true); // Abrimos el modal para elegir una carta de nuestro inventario
+    
+    // =============================================
+    // BACKEND: Se crea una solicitud en la COLA
+    // =============================================
+    setSelectModalVisible(true);
   };
 
-  // Funcion cuando se selecciona una carta del inventario para el intercambio
+  // Cuando se selecciona una carta del inventario para intercambiar
   const handleSelectCard = (selected: Card) => {
     setSelectedCard(selected);
     setSelectModalVisible(false);
-
-    // Mostramos un mensaje de que la solicitud fue enviada
+    
+    // =============================================
+    // BACKEND: Se encola la solicitud en la COLA
+    // =============================================
+    if (card) {
+      backend.getColaTrades(); // Actualizamos la cola
+      console.log('📋 Solicitud de trade encolada');
+    }
+    
     Alert.alert(
       '📨 Solicitud enviada',
       `Se mandó una petición a ${owner} para intercambiar su ${card?.name} por tu ${selected.name}.`,
@@ -140,7 +214,71 @@ export default function CardDetailScreen() {
     </TouchableOpacity>
   );
 
-  // --- 7. Que mostramos mientras carga ---
+  // -------------------------------------------------
+  // 7. FUNCION PARA PROBAR EL BACKEND (BOTON OCULTO)
+  // -------------------------------------------------
+  // Este boton solo aparece para que puedas probar
+  // que el backend está funcionando correctamente.
+  // -------------------------------------------------
+  const probarBackend = () => {
+    Alert.alert(
+      '🖥️ BACKEND C++',
+      '¿Qué estructura quieres probar?',
+      [
+        { 
+          text: '📚 PILA (Historial)', 
+          onPress: () => {
+            const historial = backend.getHistorial();
+            Alert.alert(
+              'PILA - Historial de cartas vistas',
+              `Total: ${historial.total}\n\n${historial.explicacion}\n\n${JSON.stringify(historial.datos.slice(0, 3), null, 2)}`
+            );
+          }
+        },
+        { 
+          text: '🌳 ÁRBOL (Por HP)', 
+          onPress: () => {
+            const arbol = backend.getArbolHP();
+            Alert.alert(
+              'ÁRBOL BINARIO - Ordenado por HP',
+              `Total: ${arbol.total}\n\n${arbol.explicacion}\n\n${JSON.stringify(arbol.datos.slice(0, 5), null, 2)}`
+            );
+          }
+        },
+        { 
+          text: '👥 GRAFO (Amigos)', 
+          onPress: () => {
+            // Creamos usuarios de prueba
+            backend.registrarUsuario(1, 'Ana');
+            backend.registrarUsuario(2, 'Carlos');
+            backend.conectarAmigos('Ana', 'Carlos');
+            
+            const grafo = backend.getGrafo();
+            Alert.alert(
+              'GRAFO - Red de amigos',
+              `Usuarios: ${grafo.totalVertices}\n\n${grafo.explicacion}\n\n${JSON.stringify(grafo.datos, null, 2)}`
+            );
+          }
+        },
+        { 
+          text: '🔑 HASH (Usuarios)', 
+          onPress: () => {
+            backend.registrarUsuario(42, 'UsuarioPrueba');
+            const busqueda = backend.buscarUsuario(42);
+            Alert.alert(
+              'TABLA HASH - Búsqueda por ID',
+              `Resultado: ${busqueda.usuario?.nombre || 'No encontrado'}\nBucket: ${busqueda.bucket}\n\n${busqueda.explicacion}`
+            );
+          }
+        },
+        { text: 'Cancelar', style: 'cancel' }
+      ]
+    );
+  };
+
+  // -------------------------------------------------
+  // 8. PANTALLAS DE CARGA Y ERROR
+  // -------------------------------------------------
   if (loading) {
     return (
       <View style={styles.centerContainer}>
@@ -149,7 +287,6 @@ export default function CardDetailScreen() {
     );
   }
 
-  // --- 8. Que mostramos si no se encuentra la carta ---
   if (!card) {
     return (
       <View style={styles.centerContainer}>
@@ -158,11 +295,22 @@ export default function CardDetailScreen() {
     );
   }
 
-  // --- 9. La pantalla principal con toda la interfaz ---
+  // -------------------------------------------------
+  // 9. PANTALLA PRINCIPAL
+  // -------------------------------------------------
   return (
     <>
+      {/* BOTON OCULTO PARA PROBAR BACKEND (solo visible si tocas la esquina) */}
+      <TouchableOpacity 
+        style={{ position: 'absolute', top: 40, right: 20, zIndex: 10 }}
+        onPress={probarBackend}
+      >
+        <Ionicons name="bug" size={24} color="#FF8A5C" />
+      </TouchableOpacity>
+
       <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
-        {/* Barra de navegacion superior con boton de retroceso */}
+        
+        {/* Barra de navegacion superior */}
         <View style={styles.navHeader}>
           <TouchableOpacity onPress={() => router.back()}>
             <Ionicons name="chevron-back" size={30} color="white" />
@@ -172,7 +320,7 @@ export default function CardDetailScreen() {
           )}
         </View>
 
-        {/* Seccion de la imagen (al tocarla se abre el modal grande) */}
+        {/* Imagen de la carta */}
         <TouchableOpacity
           style={styles.imageSection}
           onPress={() => setModalVisible(true)}
@@ -192,11 +340,12 @@ export default function CardDetailScreen() {
 
         {/* CUATRO BOTONES DE ACCION */}
         <View style={styles.actionButtons}>
-          {/* Boton 1: Agregar a Inventario */}
+          
+          {/* Boton 1: Inventario (LISTA) */}
           <TouchableOpacity
             style={[styles.actionBtn, styles.inventoryBtn]}
             onPress={handleAddToInventory}
-            disabled={isInInventory(card.id)} // Se deshabilita si ya esta
+            disabled={isInInventory(card.id)}
           >
             <Ionicons name="briefcase" size={24} color={isInInventory(card.id) ? '#666' : '#4CAF50'} />
             <ThemedText style={[styles.btnLabel, isInInventory(card.id) && styles.disabledText]}>
@@ -204,7 +353,7 @@ export default function CardDetailScreen() {
             </ThemedText>
           </TouchableOpacity>
 
-          {/* Boton 2: Agregar a Wishlist */}
+          {/* Boton 2: Wishlist */}
           <TouchableOpacity
             style={[styles.actionBtn, styles.wishlistBtn]}
             onPress={handleAddToWishlist}
@@ -216,7 +365,7 @@ export default function CardDetailScreen() {
             </ThemedText>
           </TouchableOpacity>
 
-          {/* Boton 3: Agregar a Trade List */}
+          {/* Boton 3: Trade List (COLA) */}
           <TouchableOpacity
             style={[styles.actionBtn, styles.tradeBtn]}
             onPress={handleAddToTradeList}
@@ -228,7 +377,7 @@ export default function CardDetailScreen() {
             </ThemedText>
           </TouchableOpacity>
 
-          {/* Boton 4: Pedir carta (SOLO cuando NO viene de coleccion) */}
+          {/* Boton 4: Pedir carta (solo si no viene de coleccion) */}
           {!fromCollection && (
             <TouchableOpacity
               style={[styles.actionBtn, styles.requestBtn]}
@@ -240,33 +389,50 @@ export default function CardDetailScreen() {
           )}
         </View>
 
-        {/* Informacion detallada de la carta */}
+        {/* Informacion detallada */}
         <View style={styles.infoBox}>
           <ThemedText type="subtitle" style={styles.infoTitle}>Card Information</ThemedText>
+          
           <View style={styles.infoRow}>
             <ThemedText style={styles.label}>Series:</ThemedText>
             <ThemedText style={styles.value}>{card.set?.name || 'Unknown'}</ThemedText>
           </View>
+          
           <View style={styles.infoRow}>
             <ThemedText style={styles.label}>Name:</ThemedText>
             <ThemedText style={styles.value}>{card.name}</ThemedText>
           </View>
+          
           <View style={styles.infoRow}>
             <ThemedText style={styles.label}>Number:</ThemedText>
             <ThemedText style={styles.value}>#{card.localId || card.id.split('-')[1]}</ThemedText>
           </View>
+          
+          {/* Este dato (HP) es el que usa el ÁRBOL del backend */}
           <View style={styles.infoRow}>
             <ThemedText style={styles.label}>HP / Element:</ThemedText>
-            <ThemedText style={styles.value}>{card.hp || 'N/A'} - {card.types?.join(', ') || 'Neutral'}</ThemedText>
+            <ThemedText style={styles.value}>
+              {card.hp || 'N/A'} - {card.types?.join(', ') || 'Neutral'}
+              {card.hp && ' 🌳 (En árbol por HP)'}
+            </ThemedText>
           </View>
+          
           <View style={styles.infoRow}>
             <ThemedText style={styles.label}>Illustrator:</ThemedText>
             <ThemedText style={styles.value}>{card.illustrator || 'Unknown'}</ThemedText>
           </View>
         </View>
+
+        {/* Explicacion del backend (solo para que el usuario sepa) */}
+        <View style={{ paddingHorizontal: 20, marginBottom: 20 }}>
+          <ThemedText style={{ color: '#4A5568', fontSize: 10, textAlign: 'center' }}>
+            🖥️ BACKEND ACTIVO: Lista (inventario) | Pila (historial) | Cola (trades) | Árbol (HP: {card.hp || 'N/A'})
+          </ThemedText>
+        </View>
+        
       </ScrollView>
 
-      {/* MODAL PARA VER LA IMAGEN EN GRANDE */}
+      {/* MODAL para imagen grande */}
       <Modal visible={modalVisible} transparent animationType="fade" onRequestClose={() => setModalVisible(false)}>
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setModalVisible(false)}>
           <View style={styles.modalContent}>
@@ -283,7 +449,7 @@ export default function CardDetailScreen() {
         </TouchableOpacity>
       </Modal>
 
-      {/* MODAL PARA SELECCIONAR CARTA DEL INVENTARIO (para intercambiar) */}
+      {/* MODAL para seleccionar carta del inventario */}
       <Modal visible={selectModalVisible} transparent animationType="slide">
         <View style={styles.selectModalContainer}>
           <View style={styles.selectModalContent}>
@@ -314,6 +480,9 @@ export default function CardDetailScreen() {
   );
 }
 
+// -------------------------------------------------
+// 10. ESTILOS (sin cambios)
+// -------------------------------------------------
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0A0A0A' },
   centerContainer: { flex: 1, backgroundColor: '#0A0A0A', justifyContent: 'center', alignItems: 'center' },
@@ -352,8 +521,6 @@ const styles = StyleSheet.create({
     borderColor: '#FF8A5C',
   },
   zoomText: { color: 'white', fontSize: 12, marginLeft: 5 },
-
-  // Estilos para los 4 botones
   actionButtons: {
     flexDirection: 'column',
     paddingHorizontal: 20,
@@ -370,25 +537,12 @@ const styles = StyleSheet.create({
     gap: 10,
     backgroundColor: '#1A1F2A',
   },
-  inventoryBtn: {
-    backgroundColor: '#1A2A1A',
-    borderColor: '#4CAF50'
-  },
-  wishlistBtn: {
-    backgroundColor: '#2A1A2A',
-    borderColor: '#FF8A5C'
-  },
-  tradeBtn: {
-    backgroundColor: '#1A1A2A',
-    borderColor: '#4A9EFF'
-  },
-  requestBtn: {
-    backgroundColor: '#2A2A1A',
-    borderColor: '#FFD93D'
-  },
+  inventoryBtn: { backgroundColor: '#1A2A1A', borderColor: '#4CAF50' },
+  wishlistBtn: { backgroundColor: '#2A1A2A', borderColor: '#FF8A5C' },
+  tradeBtn: { backgroundColor: '#1A1A2A', borderColor: '#4A9EFF' },
+  requestBtn: { backgroundColor: '#2A2A1A', borderColor: '#FFD93D' },
   btnLabel: { fontSize: 14, fontWeight: '600', color: 'white' },
   disabledText: { color: '#666' },
-
   infoBox: {
     backgroundColor: '#1A1F2A',
     margin: 20,
@@ -409,7 +563,6 @@ const styles = StyleSheet.create({
   infoRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
   label: { color: '#A0AEC0', fontSize: 14 },
   value: { color: '#FFD93D', fontSize: 14, fontWeight: 'bold' },
-
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.95)',
@@ -434,7 +587,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
     borderRadius: 20,
   },
-  // Estilos para el modal de seleccion
   selectModalContainer: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.9)',

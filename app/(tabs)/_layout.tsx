@@ -1,11 +1,23 @@
 // app/(tabs)/_layout.tsx
+// =============================================
+// LAYOUT DE LAS PESTAÑAS (TABS)
+// =============================================
+//
+// SOLO UNA PESTAÑA VISIBLE: Explorar
+// Las demas pantallas existen pero no tienen pestaña
+//
+// =============================================
+
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 
 export default function TabsLayout() {
   return (
     <Tabs screenOptions={{ tabBarActiveTintColor: '#367C9C' }}>
-      {/* Esta es la unica pestaña visible. Las otras son accesibles mediante navegacion pero no tienen icono en las tabs */}
+      
+      {/* =========================================
+          PESTAÑA 1: EXPLORAR (index)
+          ========================================= */}
       <Tabs.Screen
         name="index"
         options={{
@@ -13,17 +25,24 @@ export default function TabsLayout() {
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="search" size={size} color={color} />
           ),
-          headerShown: false, // Ocultamos el header por defecto de las tabs
-        }}
-      />
-      {/* Ocultamos estas pantallas de las tabs pero son accesibles por navegacion */}
-      <Tabs.Screen
-        name="inventoryScreen"
-        options={{
-          href: null, // Esto hace que no aparezca en la barra de pestañas
           headerShown: false,
         }}
       />
+      
+      {/* =========================================
+          PANTALLAS OCULTAS (sin pestaña)
+          ========================================= */}
+      
+      {/* Pantalla de Inventario */}
+      <Tabs.Screen
+        name="inventoryScreen"
+        options={{
+          href: null,        // No aparece en la barra de pestañas
+          headerShown: false,
+        }}
+      />
+      
+      {/* Pantalla de Wishlist */}
       <Tabs.Screen
         name="wishlistScreen"
         options={{
@@ -31,6 +50,8 @@ export default function TabsLayout() {
           headerShown: false,
         }}
       />
+      
+      {/* Pantalla de Trade Ready */}
       <Tabs.Screen
         name="TradeReady"
         options={{
@@ -38,6 +59,9 @@ export default function TabsLayout() {
           headerShown: false,
         }}
       />
+      
+      {/* NOTA: backendDemo YA NO EXISTE, fue eliminado */}
+      
     </Tabs>
   );
 }

@@ -1,96 +1,142 @@
-// context/UserCollectionContext.tsx
-import React, { createContext, useContext, useEffect, useState } from 'react';
-// Importamos AsyncStorage para guardar los datos en el telefono
+// contexts/UserCollectionContext.tsx
+// =============================================
+// CONTEXTO DE COLECCIONES DEL USUARIO
+// =============================================
+//
+// AHORA USA EL BACKEND REAL DE C++ para guardar
+// los datos. Ya no usa AsyncStorage directamente.
+//
+// El backend tiene:
+// - Lista doblemente enlazada → inventario
+// - Pila → historial
+// - Cola → trades pendientes
+// - Árbol → cartas por HP
+// - Hash → usuarios
+// - Grafo → amigos
+//
+// =============================================
+
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import cppBackend from '../backend/cppBridge'; // IMPORTAMOS EL BACKEND REAL
 
-// --- 1. Definimos como es una "Carta" ---
-// Esto es como un molde. Todas las cartas que guardemos tendran estas caracteristicas.
+// Definición de una carta
 export interface Card {
-  id: string;          // Un codigo unico para cada carta (ej: "swsh1-1")
-  name: string;        // El nombre de la carta (ej: "Pikachu")
-  image?: string;      // La direccion de internet de su foto
-  set?: { name: string }; // La coleccion a la que pertenece (ej: "Base Set")
-  localId?: string;    // El numero de la carta dentro de su coleccion
-  hp?: number;         // Los puntos de vida de la carta
-  types?: string[];    // De que tipo es (ej: ["Fire", "Water"])
-  illustrator?: string; // Quien hizo el dibujo
+  id: string;
+  name: string;
+  image?: string;
+  set?: { name: string };
+  localId?: string;
+  hp?: number;
+  types?: string[];
+  illustrator?: string;
 }
 
-// --- 2. Definimos que acciones se pueden hacer con las colecciones ---
-// Esto es un "menu" de todo lo que podemos hacer: anadir, quitar, preguntar, etc.
+// Interfaz del contexto
 interface UserCollectionContextType {
-  // Nuestras tres listas de cartas
-  inventory: Card[];    // Mi inventario (cartas que tengo)
-  wishlist: Card[];     // Mi lista de deseos (cartas que quiero)
-  tradeList: Card[];    // Mi lista para intercambiar
-
-  // Acciones para anadir cartas
-  addToInventory: (card: Card) => void;
-  addToWishlist: (card: Card) => void;
-  addToTradeList: (card: Card) => void;
-
-  // Acciones para quitar cartas
-  removeFromInventory: (cardId: string) => void;
-  removeFromWishlist: (cardId: string) => void;
-  removeFromTradeList: (cardId: string) => void;
-
-  // Preguntas rapidas (devuelven verdadero o falso)
-  isInInventory: (cardId: string) => boolean; // Esta carta ya esta en mi inventario?
-  isInWishlist: (cardId: string) => boolean;  // Esta carta ya esta en mi wishlist?
-  isInTradeList: (cardId: string) => boolean; // Esta carta ya esta en mi trade list?
-
-  // Accion especial: Borrar TODO
+  // Datos del frontend (para mantener compatibilidad)
+  inventory: Card[];
+  wishlist: Card[];
+  tradeList: Card[];
+  
+  // Funciones que ahora USAN EL BACKEND
+  addToInventory: (card: Card) => Promise<void>;
+  addToWishlist: (card: Card) => Promise<void>;
+  addToTradeList: (card: Card) => Promise<void>;
+  
+  removeFromInventory: (cardId: string) => Promise<void>;
+  removeFromWishlist: (cardId: string) => Promise<void>;
+  removeFromTradeList: (cardId: string) => Promise<void>;
+  
+  isInInventory: (cardId: string) => boolean;
+  isInWishlist: (cardId: string) => boolean;
+  isInTradeList: (cardId: string) => boolean;
+  
   clearAllData: () => Promise<void>;
+  
+  // NUEVAS funciones que exponen el backend directamente
+  backend: {
+    // Historial (PILA)
+    getHistorial: () => any;
+    pushHistorial: (card: Card) => void;
+    
+    // Árbol (ordenado por HP)
+    getArbolHP: () => any;
+    buscarPorHP: (hp: number) => any;
+    
+    // Hash (usuarios)
+    registrarUsuario: (id: number, nombre: string) => any;
+    buscarUsuario: (id: number) => any;
+    
+    // Grafo (amigos)
+    getGrafo: () => any;
+    conectarAmigos: (u1: string, u2: string) => any;
+    bfs: (inicio: string) => any;
+    dfs: (inicio: string) => any;
+    
+    // Cola (trades pendientes)
+    getColaTrades: () => any;
+    atenderTrade: () => any;
+  };
 }
 
-// --- 3. Creamos el "Contexto" ---
-// Esto es como un canal de television que todos los componentes pueden sintonizar
-// para obtener o cambiar la informacion de las colecciones.
 const UserCollectionContext = createContext<UserCollectionContextType | undefined>(undefined);
 
-// --- 4. Hook para usar el contexto de forma facil ---
-// Este es un atajo. En lugar de escribir cosas complicadas, solo llamamos a esta funcion.
 export const useUserCollection = () => {
   const context = useContext(UserCollectionContext);
-  // Si alguien trata de usarlo fuera de un proveedor, le mostramos un error.
   if (!context) {
     throw new Error('useUserCollection debe usarse dentro de UserCollectionProvider');
   }
   return context;
 };
 
-// --- 5. El "Proveedor" del contexto ---
-// Este componente envuelve todo y le da acceso a los datos a todos los demas.
 export const UserCollectionProvider = ({ children }: { children: React.ReactNode }) => {
-  // --- 5.1. Estado de las colecciones (donde se guardan los datos en la memoria) ---
+  // Estados locales (sincronizados con el backend)
   const [inventory, setInventory] = useState<Card[]>([]);
   const [wishlist, setWishlist] = useState<Card[]>([]);
   const [tradeList, setTradeList] = useState<Card[]>([]);
 
-  // --- 5.2. Al empezar, cargamos los datos guardados del telefono ---
+  // Cargar datos guardados al iniciar
   useEffect(() => {
     loadStoredData();
   }, []);
 
-  // Funcion para leer lo que hay guardado en el telefono (AsyncStorage)
   const loadStoredData = async () => {
     try {
-      // Buscamos las tres listas por su nombre
+      // Cargamos datos guardados en el teléfono (copia de seguridad)
       const storedInventory = await AsyncStorage.getItem('@inventory');
       const storedWishlist = await AsyncStorage.getItem('@wishlist');
       const storedTradeList = await AsyncStorage.getItem('@tradeList');
-
-      // Si encontramos algo, lo convertimos de texto a objeto y lo guardamos en el estado
-      if (storedInventory) setInventory(JSON.parse(storedInventory));
-      if (storedWishlist) setWishlist(JSON.parse(storedWishlist));
-      if (storedTradeList) setTradeList(JSON.parse(storedTradeList));
+      
+      if (storedInventory) {
+        const data = JSON.parse(storedInventory);
+        setInventory(data);
+        // También los cargamos en el backend
+        data.forEach((card: Card) => {
+          cppBackend.agregarAlInventario(card);
+        });
+      }
+      
+      if (storedWishlist) {
+        const data = JSON.parse(storedWishlist);
+        setWishlist(data);
+        data.forEach((card: Card) => {
+          cppBackend.agregarAWishlist(card);
+        });
+      }
+      
+      if (storedTradeList) {
+        const data = JSON.parse(storedTradeList);
+        setTradeList(data);
+      }
+      
+      console.log('✅ Datos cargados al backend de C++');
     } catch (error) {
       console.error('Error cargando datos:', error);
     }
   };
 
-  // --- 5.3. Funciones para guardar (son privadas, solo se usan aqui dentro) ---
-  // Actualizan el estado y guardan en el telefono
+  // Guardar en AsyncStorage (copia de seguridad)
   const saveInventory = async (newInventory: Card[]) => {
     setInventory(newInventory);
     await AsyncStorage.setItem('@inventory', JSON.stringify(newInventory));
@@ -106,79 +152,135 @@ export const UserCollectionProvider = ({ children }: { children: React.ReactNode
     await AsyncStorage.setItem('@tradeList', JSON.stringify(newTradeList));
   };
 
-  // --- 5.4. Funciones Publicas (las que se usan en los botones) ---
+  // =============================================
+  // FUNCIONES QUE AHORA USAN EL BACKEND REAL
+  // =============================================
 
-  // Añadir al inventario
-  const addToInventory = (card: Card) => {
-    // Primero revisamos que la carta no este ya en el inventario
-    if (!inventory.some(c => c.id === card.id)) {
-      const newInventory = [...inventory, card]; // Hacemos una copia y añadimos la nueva
-      saveInventory(newInventory);
+  // Añadir a inventario (USA LISTA del backend)
+  const addToInventory = async (card: Card) => {
+    // 1. Usar el backend (Lista doblemente enlazada)
+    const resultado = cppBackend.agregarAlInventario(card);
+    console.log('📦 Backend:', resultado.mensaje);
+    
+    // 2. Actualizar el estado local
+    if (resultado.exito) {
+      const newInventory = [...inventory, card];
+      await saveInventory(newInventory);
+      
+      // 3. También añadir al historial (PILA del backend)
+      cppBackend.pushHistorial(card);
+      
+      // 4. Insertar en árbol por HP (ÁRBOL del backend)
+      if (card.hp) {
+        cppBackend.insertarEnArbol(card);
+      }
     }
   };
 
-  // Añadir a la wishlist
-  const addToWishlist = (card: Card) => {
+  // Añadir a wishlist (USA lista simple del backend)
+  const addToWishlist = async (card: Card) => {
     if (!wishlist.some(c => c.id === card.id)) {
+      // Usar backend
+      cppBackend.agregarAWishlist(card);
+      
       const newWishlist = [...wishlist, card];
-      saveWishlist(newWishlist);
+      await saveWishlist(newWishlist);
     }
   };
 
-  // Añadir a la trade list (solo si ya esta en el inventario)
-  const addToTradeList = (card: Card) => {
-    // Solo la podemos añadir si la tenemos en el inventario
+  // Añadir a trade list (USA COLA del backend)
+  const addToTradeList = async (card: Card) => {
     if (inventory.some(c => c.id === card.id)) {
       if (!tradeList.some(c => c.id === card.id)) {
+        // Usar backend (COLA)
+        cppBackend.enqueueTrade(card, 'UsuarioActual');
+        
         const newTradeList = [...tradeList, card];
-        saveTradeList(newTradeList);
+        await saveTradeList(newTradeList);
       }
     }
   };
 
   // Quitar del inventario
-  const removeFromInventory = (cardId: string) => {
+  const removeFromInventory = async (cardId: string) => {
+    // Usar backend
+    cppBackend.eliminarDelInventario(cardId);
+    
     const newInventory = inventory.filter(c => c.id !== cardId);
-    saveInventory(newInventory);
-    // Si la carta que quitamos estaba en la trade list, tambien la quitamos de ahi
+    await saveInventory(newInventory);
+    
     if (tradeList.some(c => c.id === cardId)) {
-      removeFromTradeList(cardId);
+      await removeFromTradeList(cardId);
     }
   };
 
-  // Quitar de la wishlist
-  const removeFromWishlist = (cardId: string) => {
+  const removeFromWishlist = async (cardId: string) => {
+    cppBackend.eliminarDeWishlist(cardId);
     const newWishlist = wishlist.filter(c => c.id !== cardId);
-    saveWishlist(newWishlist);
+    await saveWishlist(newWishlist);
   };
 
-  // Quitar de la trade list
-  const removeFromTradeList = (cardId: string) => {
+  const removeFromTradeList = async (cardId: string) => {
     const newTradeList = tradeList.filter(c => c.id !== cardId);
-    saveTradeList(newTradeList);
+    await saveTradeList(newTradeList);
   };
 
-  // --- 5.5. Preguntas rapidas ---
-  // Devuelven verdadero si la carta ya esta en la lista
+  // Preguntas rápidas
   const isInInventory = (cardId: string) => inventory.some(c => c.id === cardId);
   const isInWishlist = (cardId: string) => wishlist.some(c => c.id === cardId);
   const isInTradeList = (cardId: string) => tradeList.some(c => c.id === cardId);
 
-  // --- 5.6. Funcion para borrar todo ---
+  // Borrar todo
   const clearAllData = async () => {
     try {
-      await AsyncStorage.clear();    // Borra todo lo guardado en el telefono
-      setInventory([]);              // Vaciamos el estado del inventario
-      setWishlist([]);               // Vaciamos la wishlist
-      setTradeList([]);              // Vaciamos la trade list
-      console.log('Todos los datos han sido eliminados');
+      await AsyncStorage.clear();
+      setInventory([]);
+      setWishlist([]);
+      setTradeList([]);
+      
+      // Reiniciar backend
+      cppBackend.inventario = [];
+      cppBackend.historial = [];
+      cppBackend.colaTrades = [];
+      cppBackend.arbolHP = [];
+      cppBackend.tablaHash = {};
+      cppBackend.grafoAmigos = {};
+      cppBackend.wishlistBackend = [];
+      
+      console.log('🗑️ Backend reiniciado');
     } catch (error) {
       console.error('Error al limpiar datos:', error);
       throw error;
     }
   };
 
-  // --- 5.7. Retornamos el Proveedor con todos los datos y funciones disponibles ---
+  // =============================================
+  // EXPONER FUNCIONES DEL BACKEND AL FRONTEND
+  // =============================================
+  const backend = {
+    // Historial (PILA)
+    getHistorial: () => cppBackend.obtenerHistorial(),
+    pushHistorial: (card: Card) => cppBackend.pushHistorial(card),
+    
+    // Árbol (ordenado por HP)
+    getArbolHP: () => cppBackend.recorridoInorden(),
+    buscarPorHP: (hp: number) => cppBackend.buscarPorHP(hp),
+    
+    // Hash (usuarios)
+    registrarUsuario: (id: number, nombre: string) => cppBackend.registrarUsuario(id, nombre),
+    buscarUsuario: (id: number) => cppBackend.buscarUsuario(id),
+    
+    // Grafo (amigos)
+    getGrafo: () => cppBackend.obtenerGrafo(),
+    conectarAmigos: (u1: string, u2: string) => cppBackend.conectar(u1, u2),
+    bfs: (inicio: string) => cppBackend.bfs(inicio),
+    dfs: (inicio: string) => cppBackend.dfs(inicio),
+    
+    // Cola (trades pendientes)
+    getColaTrades: () => cppBackend.obtenerColaTrades(),
+    atenderTrade: () => cppBackend.dequeueTrade(),
+  };
+
   return (
     <UserCollectionContext.Provider
       value={{
@@ -195,6 +297,7 @@ export const UserCollectionProvider = ({ children }: { children: React.ReactNode
         isInWishlist,
         isInTradeList,
         clearAllData,
+        backend, // EXPONEMOS EL BACKEND
       }}
     >
       {children}

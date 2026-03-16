@@ -341,12 +341,18 @@ export default function HomeScreen() {
         {/* --- MODAL DEL MENU LATERAL (se desliza desde la derecha) --- */}
         <Modal visible={isPanelVisible} transparent animationType="slide">
           <View style={styles.modalContainer}>
-            {/* Zona oscura que al tocarla cierra el menu */}
-            <TouchableOpacity style={styles.closeOverlay} onPress={() => setPanelVisible(false)} activeOpacity={1} />
+            
+            {/* Zona OSCURA fuera del menu */}
+            <TouchableOpacity 
+              style={styles.closeOverlay} 
+              onPress={() => setPanelVisible(false)} 
+              activeOpacity={1} 
+            />
 
-            {/* El panel blanco (o en este caso, oscuro) del menu */}
+            {/* El panel del menu */}
             <View style={styles.sidePanel}>
-              {/* Informacion del usuario (avatar y nombre) */}
+              
+              {/* SECCION DEL USUARIO */}
               <View style={styles.userInfoSection}>
                 <Image
                   source={require('../../assets/images/profile-pic.jpg')}
@@ -356,24 +362,58 @@ export default function HomeScreen() {
                 <ThemedText style={styles.panelUser}>{username}</ThemedText>
               </View>
 
-              {/* Lista de opciones del menu */}
+              {/* LISTA DE OPCIONES DEL MENU */}
               <View style={styles.menuList}>
-                <TouchableOpacity style={styles.menuItem} onPress={() => { setPanelVisible(false); router.push('/(tabs)/inventoryScreen'); }}>
+                
+                {/* Opcion 1: Ir al Inventario */}
+                <TouchableOpacity 
+                  style={styles.menuItem} 
+                  onPress={() => { 
+                    setPanelVisible(false); 
+                    router.push('/(tabs)/inventoryScreen'); 
+                  }}
+                >
                   <Ionicons name="briefcase-outline" size={22} color="#FF8A5C" />
                   <ThemedText style={styles.menuItemText}>Inventory</ThemedText>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.menuItem} onPress={() => { setPanelVisible(false); router.push('/(tabs)/wishlistScreen'); }}>
+                
+                {/* Opcion 2: Ir a Wishlist */}
+                <TouchableOpacity 
+                  style={styles.menuItem} 
+                  onPress={() => { 
+                    setPanelVisible(false); 
+                    router.push('/(tabs)/wishlistScreen'); 
+                  }}
+                >
                   <Ionicons name="heart-outline" size={22} color="#FFD93D" />
                   <ThemedText style={styles.menuItemText}>Wishlist</ThemedText>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.menuItem} onPress={() => { setPanelVisible(false); router.push('/(tabs)/TradeReady'); }}>
+                
+                {/* Opcion 3: Ir a Trade List */}
+                <TouchableOpacity 
+                  style={styles.menuItem} 
+                  onPress={() => { 
+                    setPanelVisible(false); 
+                    router.push('/(tabs)/TradeReady'); 
+                  }}
+                >
                   <Ionicons name="swap-horizontal-outline" size={22} color="#4A9EFF" />
                   <ThemedText style={styles.menuItemText}>Listed for Trade</ThemedText>
                 </TouchableOpacity>
+
+                {/* =========================================
+                    OPCION DE BACKEND DEMO: ELIMINADA
+                    Ya no aparece aqui. El backend ahora
+                    esta integrado en toda la app.
+                ========================================= */}
+                
               </View>
 
-              {/* Boton para borrar datos (abajo a la derecha) */}
-              <TouchableOpacity style={styles.deleteButton} onPress={limpiarTodosLosDatos}>
+              {/* BOTON PARA BORRAR DATOS */}
+              <TouchableOpacity 
+                style={styles.deleteButton} 
+                onPress={limpiarTodosLosDatos}
+              >
                 <Ionicons name="trash-outline" size={22} color="#FF6B6B" />
                 <ThemedText style={styles.deleteButtonText}>Borrar Datos</ThemedText>
               </TouchableOpacity>
